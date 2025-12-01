@@ -1,6 +1,6 @@
 #!/bin/bash
 
-YEAR=2023
+YEAR=2025
 AOC_BASE_URL="https://adventofcode.com/$YEAR/"
 
 # Function to create a new Advent of Code solution for a given day
