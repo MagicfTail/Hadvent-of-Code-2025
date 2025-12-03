@@ -36,6 +36,7 @@ common deps
     , mtl
     , pointedlist
     , bytestring-trie
+    , array
   other-modules:
       Paths_advent_of_code
   ghc-options:
@@ -54,4 +55,10 @@ executable day-2
   hs-source-dirs:
       solutions
   main-is: day-2.hs
+
+executable day-3
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-3.hs
 
