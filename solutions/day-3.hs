@@ -3,14 +3,14 @@ module Main where
 import System.Environment (getArgs)
 import Data.ByteString.Char8 qualified as B
 import Data.Attoparsec.ByteString.Char8 qualified as Atto
-import qualified Data.Char as Atto
-import Data.Array ( (!), array )
+import Data.Char qualified as Char
+import Data.Array ( (!), array, listArray )
 
 type Input    = [[Int]]
 type Solution = Int
 
 parseLine :: Atto.Parser [Int]
-parseLine = Atto.many1 (Atto.digitToInt <$> Atto.digit)
+parseLine = Atto.many1 (Char.digitToInt <$> Atto.digit)
 
 parser :: B.ByteString -> Input
 parser rawData =
@@ -21,25 +21,26 @@ parser rawData =
 getLargestPairFromLine :: [Int] -> Int
 getLargestPairFromLine values
   | length values < 2 = 0
-  | otherwise = do
-    let largestValuesRight = scanl1 max (init values)
-        largestValuesLeft = reverse (scanl1 max (init (reverse values)))
-        result = maximum (zipWith (\a b -> 10 * a + b) largestValuesRight largestValuesLeft)
-    result
+  | otherwise = maximum $ zipWith (\a b -> 10 * a + b) largestValuesRight largestValuesLeft where
+      largestValuesRight = scanl1 max $ init values
+      largestValuesLeft = reverse . scanl1 max . init $ reverse values
+
 
 helper :: [Int] -> Int -> Int
-helper numbers stepsMax = memo ! (0, stepsMax) where
-  n = length numbers
+helper numberList stepsMax = memo!(0, stepsMax) where
+  n = length numberList
   bounds = ((0, 0), (n, stepsMax))
+
+  numbers = listArray (0, n - 1) numberList
 
   memo = array bounds [((x, y), calc x y) | x <- [0..n], y <- [0..stepsMax]]
 
   calc _ 0 = 0
   calc position steps
-    | length numbers - position == steps = numbers!!position * 10^(steps - 1) + memo ! (position + 1, steps - 1)
+    | length numbers - position == steps = numbers!position * 10^(steps - 1) + memo!(position + 1, steps - 1)
     | otherwise = max takeItem leaveItem where
-      takeItem = numbers!!position * 10^(steps - 1) + memo ! (position + 1, steps - 1)
-      leaveItem = memo ! (position + 1, steps)
+      takeItem = numbers!position * 10^(steps - 1) + memo!(position + 1, steps - 1)
+      leaveItem = memo!(position + 1, steps)
   
 
 getLargestCollectionFromLine :: [Int] -> Int
@@ -47,11 +48,11 @@ getLargestCollectionFromLine numbers = helper numbers 12
 
 -- | The function which calculates the solution for part one
 solve1 :: Input -> Solution
-solve1 input = sum (map getLargestPairFromLine input)
+solve1 = sum . map getLargestPairFromLine
 
 -- | The function which calculates the solution for part two
 solve2 :: Input -> Solution
-solve2 input = sum (map getLargestCollectionFromLine input)
+solve2 = sum . map getLargestCollectionFromLine
 
 main :: IO ()
 main = do
