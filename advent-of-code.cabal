@@ -74,3 +74,9 @@ executable day-5
       solutions
   main-is: day-5.hs
 
+executable day-6
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-6.hs
+
