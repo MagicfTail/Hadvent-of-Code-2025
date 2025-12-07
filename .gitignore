@@ -3,3 +3,7 @@
 .env
 inputs/
 dist-newstyle
+
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
