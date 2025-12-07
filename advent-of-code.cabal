@@ -80,3 +80,9 @@ executable day-6
       solutions
   main-is: day-6.hs
 
+executable day-7
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-7.hs
+
