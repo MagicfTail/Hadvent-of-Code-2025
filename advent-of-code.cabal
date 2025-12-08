@@ -37,6 +37,8 @@ common deps
     , pointedlist
     , bytestring-trie
     , array
+    , PSQueue
+    , disjoint-containers
   other-modules:
       Paths_advent_of_code
   ghc-options:
@@ -85,4 +87,10 @@ executable day-7
   hs-source-dirs:
       solutions
   main-is: day-7.hs
+
+executable day-8
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-8.hs
 
