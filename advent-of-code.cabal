@@ -94,3 +94,9 @@ executable day-8
       solutions
   main-is: day-8.hs
 
+executable day-9
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-9.hs
+
