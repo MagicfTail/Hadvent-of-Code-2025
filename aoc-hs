@@ -109,7 +109,7 @@ run_solution() {
   fi
 
   # Check if the number is a positive integer
-  if ! [[ "$number" =~ ^([1-9]|1\d|2[0-5])$ ]]; then
+  if ! [[ "$number" =~ ^[0-9]+$ ]] || (( number < 1 || number > 25 )); then
     echo "Invalid day: $number. It should be between 1 and 25"
     exit 1
   fi
