@@ -106,3 +106,9 @@ executable day-10
       solutions
   main-is: day-10.hs
 
+executable day-11
+  import: deps
+  hs-source-dirs:
+      solutions
+  main-is: day-11.hs
+
