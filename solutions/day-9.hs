@@ -3,16 +3,14 @@ module Main where
 import System.Environment (getArgs)
 import Data.ByteString.Char8 qualified as B
 import Data.Attoparsec.ByteString.Char8 qualified as Atto
-import Data.List (tails)
-import Debug.Trace (traceShowId)
+import Data.List (tails, sortBy, find)
 
-type Input    = [(Int, Int)]
+type Point    = (Int, Int)
+type Edge     = (Point, Point)
+type Input    = [Point]
 type Solution = Int
 
-data Direction = UpDir | DownDir | LeftDir | RightDir deriving (Eq, Show)
-data Turn = LeftTurn | RightTurn deriving (Eq, Show)
-
-parseLine :: Atto.Parser (Int, Int)
+parseLine :: Atto.Parser Point
 parseLine = (,) <$> Atto.decimal <* Atto.char ',' <*> Atto.decimal
 
 parser :: B.ByteString -> Input
@@ -21,27 +19,90 @@ parser rawData =
     Left err  -> error err
     Right res -> res
 
-area :: (Int, Int) -> (Int, Int) -> Int
-area (x1, y1) (x2, y2) = (+ 1) (max x1 x2 - min x1 x2) * (+ 1) (max y1 y2 - min y1 y2)
+area :: Point -> Point -> Int
+area (x1, y1) (x2, y2) = (abs (x1 - x2) + 1) * (abs (y1 - y2) + 1)
 
 pairs :: [a] -> [(a, a)]
 pairs l = [(x,y) | (x:ys) <- tails l, y <- ys]
 
-mapToTriples :: [(Int, Int)] -> [((Int, Int), (Int, Int), (Int, Int))]
-mapToTriples (x1 : x2 : xs) = helper (x1 : x2 : xs) where
-  helper [] = []
-  helper [h1] = [(h1, x1, x2)]
-  helper [h1, h2] = [(h1, h2, x1), (h2, x1, x2)]
-  helper values = (head values, values!!1, values!!2) : helper (tail values)
-mapToTriples _ = error "Not enough args"
+inRange :: Int -> (Int, Int) -> Bool
+inRange i (start, end) = start <= i && i <= end
 
-getDirection :: (Int, Int) -> (Int, Int) -> Direction
-getDirection (fromX, fromY) (toX, toY)
-  | fromX == toX && fromY > toY = UpDir
-  | fromX == toX && fromY < toY = DownDir
-  | fromY == toY && fromX > toX = LeftDir
-  | fromY == toY && fromX < toX = RightDir
-  | otherwise                   = error "Can't get direction of equal points"
+inRangeSharp :: Int -> (Int, Int) -> Bool
+inRangeSharp i (start, end) = start < i && i < end
+
+pointsToEdges :: [Point] -> [Edge]
+pointsToEdges [] = []
+pointsToEdges [_] = []
+pointsToEdges points = zip points (tail $ cycle points)
+
+corners :: Point -> Point -> (Point, Point, Point, Point)
+corners (aX, aY) (bX, bY) = ((minX, minY), (maxX, minY), (maxX, maxY), (minX, maxY)) where
+  minX = min aX bX
+  maxX = max aX bX
+  minY = min aY bY
+  maxY = max aY bY
+
+pointOnEdge :: Point -> Edge -> Bool
+pointOnEdge (pointX, pointY) ((edgeStartX, edgeStartY), (edgeEndX, edgeEndY)) = onVerticalEdge || onHorizontalEdge where
+  minX = min edgeStartX edgeEndX
+  maxX = max edgeStartX edgeEndX
+  minY = min edgeStartY edgeEndY
+  maxY = max edgeStartY edgeEndY
+
+  isVertical = edgeStartX == edgeEndX
+
+  onVerticalEdge = isVertical && pointX == edgeStartX && inRange pointY (minY, maxY)
+  onHorizontalEdge = not isVertical && pointY == edgeStartY && inRange pointX (minX, maxX)
+
+pointInsideShape :: [Edge] -> Point -> Bool
+pointInsideShape edges point =  (== (1 :: Integer)) (edgesToRight `mod` 2) where
+  edgesToRight = countEdgesToRight edges point
+
+  countEdgesToRight [] _ = 0
+  countEdgesToRight (((edgeStartX, edgeStartY), (edgeEndX, edgeEndY)) : remainders) (pointX, pointY) = countEdgesToRight remainders (pointX, pointY) + edgeHit where
+    isVertical = edgeStartX == edgeEndX
+
+    minY = min edgeStartY edgeEndY
+    maxY = max edgeStartY edgeEndY
+
+    edgeHit = if isVertical && pointX < edgeStartX && minY <= pointY && pointY < maxY then 1 else 0
+
+pointInShape :: [Edge] -> Point -> Bool
+pointInShape edges point = inside || onEdge where
+  inside = pointInsideShape edges point
+  onEdge = any (pointOnEdge point) edges
+
+edgesBetweenPoints :: Point -> Point -> [Edge] -> Bool
+edgesBetweenPoints (aX, aY) (bX, bY) = edgeBetweenPoints where
+  pointMinX = min aX bX
+  pointMaxX = max aX bX
+  pointMinY = min aY bY
+  pointMaxY = max aY bY
+
+  isVerticalSeg = aX == bX
+
+  edgeBetweenPoints [] = False
+  edgeBetweenPoints (((edgeStartX, edgeStartY), (edgeEndX, edgeEndY)) : remainder) = val where
+    edgeMinX = min edgeStartX edgeEndX
+    edgeMaxX = max edgeStartX edgeEndX
+    edgeMinY = min edgeStartY edgeEndY
+    edgeMaxY = max edgeStartY edgeEndY
+
+    isVerticalEdge = edgeStartX == edgeEndX
+
+    val
+      | isVerticalSeg && not isVerticalEdge && inRangeSharp edgeStartY (pointMinY, pointMaxY) && inRangeSharp aX (edgeMinX, edgeMaxX) = True
+      | not isVerticalSeg && isVerticalEdge && inRangeSharp edgeStartX (pointMinX, pointMaxX) && inRangeSharp aY (edgeMinY, edgeMaxY) = True
+      | otherwise = edgeBetweenPoints remainder
+
+validSquare :: [Edge] -> (Point, Point) -> Bool
+validSquare edges (pointA, pointB) = allInside && not anyIntersectingEdges where
+  (tl, tr, br, bl) = corners pointA pointB
+
+  allInside = pointInShape edges tl && pointInShape edges tr && pointInShape edges br && pointInShape edges bl
+
+  anyIntersectingEdges = edgesBetweenPoints tl tr edges || edgesBetweenPoints tr br edges || edgesBetweenPoints br bl edges || edgesBetweenPoints bl tl edges
 
 -- | The function which calculates the solution for part one
 solve1 :: Input -> Solution
@@ -49,10 +110,17 @@ solve1 = maximum . map (uncurry area) . pairs
 
 -- | The function which calculates the solution for part two
 solve2 :: Input -> Solution
-solve2 input = maximum areas where
-  triples = mapToTriples input
+solve2 input = area p1 p2 where
+  edges = pointsToEdges input
 
-  areas = traceShowId $ map (\(a, _, b) -> area a b) triples
+  pointPairs = pairs input
+  sortedPointPairs = sortBy (\(a1, a2) (b1, b2) -> area b1 b2 `compare` area a1 a2) pointPairs
+
+  point = find (validSquare edges) sortedPointPairs
+
+  (p1, p2) = case point of
+    Just p -> p
+    Nothing -> error "No solution found"
 
 main :: IO ()
 main = do
@@ -68,4 +136,3 @@ main = do
     else do
       putStrLn "solution to problem 2 is:"
       print $ solve2 input
-
